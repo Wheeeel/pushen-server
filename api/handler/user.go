@@ -1,6 +1,9 @@
 package handler
 
 import (
+	"math/rand"
+	"time"
+
 	"github.com/Wheeeel/pushen-server/api/request"
 	"github.com/Wheeeel/pushen-server/model"
 	"github.com/Wheeeel/pushen-server/util"
@@ -9,8 +12,16 @@ import (
 )
 
 var (
-	useToken  = "PUSHEN-USE-TOKEN"
-	tokenName = "PUSHEN-TOKEN"
+	useToken = "PUSHEN-USE-TOKEN"
+	//tokenName = "PUSHEN-TOKEN"
+
+	avatar = []string{
+		"http://a.hiphotos.baidu.com/image/pic/item/00e93901213fb80e139458333cd12f2eb8389488.jpg",
+		"http://a.hiphotos.baidu.com/image/pic/item/342ac65c103853437bb76ac59913b07ecb8088de.jpg",
+		"http://s0.hao123img.com/res/img/moe/0707QX_333G.jpg",
+		"http://s0.hao123img.com/res/img/moe/0707QX_333G.jpg",
+		"http://fdfs.xmcdn.com/group5/M01/33/4B/wKgDtVORjieivT6jAAO-Rdq2VaU918_mobile_large.jpg",
+	}
 )
 
 func UserLoginHandler(ctx iris.Context) {
@@ -59,6 +70,13 @@ func UserLoginHandler(ctx iris.Context) {
 }
 
 func UserLogoutHandler(ctx iris.Context) {
+	s := session.Start(ctx)
+	s.Clear()
+
+	var resp Response
+	resp.Code = iris.StatusOK
+	resp.Msg = "success"
+	ctx.JSON(resp)
 }
 
 func UserCreateHandler(ctx iris.Context) {
@@ -86,6 +104,8 @@ func UserCreateHandler(ctx iris.Context) {
 		return
 	}
 
+	rand.Seed(time.Now().Unix())
+	user.AvatarURL = avatar[rand.Intn(5)]
 	err = model.UserCreate(&user)
 	if err != nil {
 		ctx.StatusCode(iris.StatusInternalServerError)
@@ -100,42 +120,23 @@ func UserCreateHandler(ctx iris.Context) {
 }
 
 func UserInfoHandler(ctx iris.Context) {
-	var email string
-	sess := session.Start(ctx)
-	ei := sess.Get("email")
-	if ei == nil {
-		var resp Response
-		resp.Code = 403
-		resp.Msg = "please sign in"
-		ctx.JSON(resp)
-		return
-	}
-	var ok bool
-	email, ok = ei.(string)
-	if !ok {
-		var resp Response
-		resp.Code = 403
-		resp.Msg = "please sign in"
-		ctx.JSON(resp)
+	email := ctx.Values().GetString("email")
+	if email == "" {
+		ctx.StatusCode(iris.StatusForbidden)
+		ctx.Values().Set("error", "auth error")
 		return
 	}
 
 	user, err := model.UserByEmail(email)
 	if err != nil {
-		var resp Response
-		resp.Code = 500
-		resp.Msg = err.Error()
-		ctx.JSON(resp)
+		ctx.StatusCode(iris.StatusInternalServerError)
+		ctx.Values().Set("error", err.Error())
 		return
 	}
 
 	var resp Response
-	resp.Code = 500
+	resp.Code = 200
 	resp.Msg = "ok"
 	resp.Data = user
 	ctx.JSON(resp)
-	return
-}
-
-func UserTokenHandler(ctx iris.Context) {
 }

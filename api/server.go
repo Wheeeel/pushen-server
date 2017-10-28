@@ -38,9 +38,9 @@ func New(addr string) (srv *Server, err error) {
 	})
 
 	// cors
-	ch := corscore.AllowAll().ServeHTTP
-	h := handlerconv.FromStdWithNext(ch)
-	srv.app.Use(h)
+	corsServe := corscore.AllowAll().ServeHTTP
+	corsHandler := handlerconv.FromStdWithNext(corsServe)
+	srv.app.Use(corsHandler)
 	srv.app.Use(handler.CorsHandler)
 
 	// filter
@@ -61,11 +61,7 @@ func New(addr string) (srv *Server, err error) {
 	srv.app.Get("/messages", wsHandler)
 	srv.app.Post("/devices/bind", handler.BindAuthTokenHandler)
 	srv.app.Get("/token", handler.DeviceBindTokenHandler)
-
-	srv.app.Use(func (ctx iris.Context) {
-		fmt.Println("post")
-		ctx.Next()
-	})
+	srv.app.Get("/debug", handler.DebugHandler)
 
 	return
 }

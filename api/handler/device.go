@@ -9,77 +9,22 @@ import (
 	"github.com/satori/go.uuid"
 )
 
-func BindAuthTokenHandler(ctx iris.Context) {
-	var dbt request.DeviceBindToken
-	err := ctx.ReadJSON(&dbt)
+func DeviceListHandler(ctx iris.Context) {
+	email := ctx.Values().GetString("email")
+	if email == "" {
+		ctx.StatusCode(iris.StatusForbidden)
+		ctx.Values().Set("error", "auth error")
+		return
+	}
+
+	user, err := model.UserByEmail(email)
 	if err != nil {
-		ctx.StatusCode(iris.StatusBadRequest)
-		ctx.Values().Set("error", err.Error())
+		ctx.StatusCode(iris.StatusForbidden)
+		ctx.Values().Set("error", "auth error")
 		return
 	}
 
-	validate := validator.New()
-	err = validate.Struct(dbt)
-	if err != nil {
-		ctx.StatusCode(iris.StatusBadRequest)
-		ctx.Values().Set("error", err.Error())
-		return
-	}
-
-	var bindToken model.BindToken
-	err = util.CopyStruct(&bindToken, dbt)
-	if err != nil {
-		ctx.StatusCode(iris.StatusInternalServerError)
-		ctx.Values().Set("error", err.Error())
-		return
-	}
-
-	token, err := model.BindTokenByToken(bindToken.Token)
-	if err != nil {
-		ctx.StatusCode(iris.StatusBadRequest)
-		ctx.Values().Set("error", err.Error())
-		return
-	}
-
-	if token.Status == model.BindStatusBinded {
-		ctx.StatusCode(iris.StatusBadRequest)
-		ctx.Values().Set("error", "token has been binded.")
-		return
-	}
-
-	token.Status = model.BindStatusBinded
-	err = model.BindTokenUpdateStatus(&bindToken)
-	if err != nil {
-		ctx.StatusCode(iris.StatusInternalServerError)
-		ctx.Values().Set("error", err.Error())
-		return
-	}
-
-	// generate auth token
-	var at model.AuthToken
-	at.Token = uuid.NewV4().String()
-	at.UserID = token.UserID
-	err = model.AuthTokenCreate(&at)
-	if err != nil {
-		ctx.StatusCode(iris.StatusInternalServerError)
-		ctx.Values().Set("error", err.Error())
-		return
-	}
-
-	user, err := model.UserByID(token.UserID)
-	if err != nil {
-		ctx.StatusCode(iris.StatusBadRequest)
-		ctx.Values().Set("error", err.Error())
-		return
-	}
-
-	// generate device
-	var device model.Device
-	device.Type = "phone"
-	device.UUID = uuid.NewV4().String()
-	device.UserID = user.ID
-	//device.Status = 1
-	err = model.DeviceCreate(&device)
+	devices, err := model.DevicesByUserID(user.ID)
 	if err != nil {
 		ctx.StatusCode(iris.StatusInternalServerError)
 		ctx.Values().Set("error", err.Error())
@@ -88,11 +33,8 @@ func BindAuthTokenHandler(ctx iris.Context) {
 
 	var resp Response
 	resp.Code = 200
-	resp.Msg = "bind success"
-	resp.Data = map[string]interface{}{
-		"Token":  at.Token,
-		"Device": device.UUID,
-	}
+	resp.Msg = "ok"
+	resp.Data = devices
 	ctx.JSON(resp)
 }
 

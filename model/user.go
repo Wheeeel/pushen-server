@@ -17,6 +17,15 @@ type User struct {
 	Timestamp
 }
 
+func UserByID(id int64) (user User, err error) {
+	err = DefaultDB.Where("id = ?", id).First(&user).Error
+	if err != nil {
+		err = errors.Wrap(err, "user by id error")
+		return
+	}
+	return
+}
+
 func UserByEmail(email string) (user User, err error) {
 	err = DefaultDB.Where("email = ?", email).First(&user).Error
 	if err != nil {

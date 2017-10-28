@@ -20,3 +20,12 @@ func DeviceCreate(deivce *Device) (err error) {
 	}
 	return
 }
+
+func DevicesByUserID(id int64) (devices []Device, err error) {
+	err = DefaultDB.Where("id = ?", id).Find(&devices).Error
+	if err != nil {
+		err = errors.Wrap(err, "device by user id error")
+		return
+	}
+	return
+}

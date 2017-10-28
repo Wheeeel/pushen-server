@@ -9,7 +9,7 @@ import (
 func AuthHandler(ctx iris.Context) {
 	// white list
 	switch ctx.Path() {
-	case "/users/signup", "/users/signin", "devices/bind":
+	case "/users/signup", "/users/signin", "/devices/bind", "/debug":
 		ctx.Next()
 		return
 	case "/messages":
@@ -19,6 +19,31 @@ func AuthHandler(ctx iris.Context) {
 			ctx.Values().Set("error", "auth error")
 			return
 		}
+		ctx.Next()
+		return
+	case "/me":
+		tokenStr := ctx.GetHeader("X-Auth-Token")
+		// use cookie
+		if tokenStr == "" {
+			break
+		}
+
+		// use token
+		token, err := model.AuthTokenByToken(tokenStr)
+		if err != nil {
+			ctx.StatusCode(iris.StatusForbidden)
+			ctx.Values().Set("error", "auth error")
+			return
+		}
+
+		user, err := model.UserByID(token.UserID)
+		if err != nil {
+			ctx.StatusCode(iris.StatusForbidden)
+			ctx.Values().Set("error", "auth error")
+			return
+		}
+
+		ctx.Values().Set("email", user.Email)
 		ctx.Next()
 		return
 	}

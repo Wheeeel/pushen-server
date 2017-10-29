@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/Wheeeel/pushen-server/api/request"
+	apiutil "github.com/Wheeeel/pushen-server/api/util"
 	"github.com/Wheeeel/pushen-server/model"
 	"github.com/Wheeeel/pushen-server/util"
 	"github.com/go-playground/validator"
@@ -17,45 +18,47 @@ func ReceiveMessageHandler(ctx iris.Context) {
 	var mc request.MessageCreate
 	err := ctx.ReadJSON(&mc)
 	if err != nil {
-		ctx.StatusCode(iris.StatusBadRequest)
-		ctx.Values().Set("error", err.Error())
+		apiutil.WriteErrorf(ctx, iris.StatusBadRequest, err.Error(), "receive message error: %v", err.Error())
 		return
 	}
 
 	validate := validator.New()
 	err = validate.Struct(mc)
 	if err != nil {
-		ctx.StatusCode(iris.StatusBadRequest)
-		ctx.Values().Set("error", err.Error())
+		apiutil.WriteErrorf(ctx, iris.StatusBadRequest, err.Error(), "receive message error: %v", err.Error())
+		return
+	}
+
+	device, err := model.DeviceByUUID(model.DefaultDB, mc.DeviceID)
+	if err != nil {
+		apiutil.WriteErrorf(ctx, iris.StatusBadRequest, err.Error(), "receive message error: %v", err.Error())
 		return
 	}
 
 	var msg model.Message
 	err = util.CopyStruct(&msg, mc)
 	if err != nil {
-		ctx.StatusCode(iris.StatusInternalServerError)
-		ctx.Values().Set("error", err.Error())
+		apiutil.WriteErrorf(ctx, iris.StatusInternalServerError, err.Error(), "receive message error: %v", err.Error())
 		return
 	}
 
 	tx := model.DefaultDB.Begin()
+	msg.DeviceID = device.ID
 	err = model.MessageCreate(tx, &msg)
 	if err != nil {
 		tx.Rollback()
-		ctx.StatusCode(iris.StatusInternalServerError)
-		ctx.Values().Set("error", err.Error())
+		apiutil.WriteErrorf(ctx, iris.StatusInternalServerError, err.Error(), "receive message error: %v", err.Error())
 		return
 	}
 	if err = tx.Commit().Error; err != nil {
 		tx.Rollback()
-		ctx.StatusCode(iris.StatusInternalServerError)
-		ctx.Values().Set("error", err.Error())
+		apiutil.WriteErrorf(ctx, iris.StatusInternalServerError, err.Error(), "receive message error: %v", err.Error())
 		return
 	}
 
 	var resp Response
 	resp.Code = 200
-	resp.Msg = "create message success"
+	resp.Msg = "receive message success"
 	ctx.JSON(resp)
 }
 
@@ -64,8 +67,9 @@ func SendMessageHandler(c websocket.Connection) {
 	defer ticker.Stop()
 
 	for range ticker.C {
-		ms, err := model.MessageByCreateTimestamp(model.DefaultDB)
+		ms, err := model.MessageOrderByCreateTimestamp(model.DefaultDB)
 		if err != nil {
+			//c.Context()..Application().Logger().Infof("receive message error: %v", err)
 			log.Println(err)
 			continue
 		}
@@ -79,10 +83,14 @@ func SendMessageHandler(c websocket.Connection) {
 				log.Println(err)
 				continue
 			}
-			c.EmitMessage(b)
+			err = c.EmitMessage(b)
+			if err != nil {
+				log.Println(err)
+				continue
+			}
 
 			tx := model.DefaultDB.Begin()
-			m.Status = model.MessageStatusSendt
+			m.Status = model.MessageStatusSent
 			err = model.MessageUpdateStatus(tx, &m)
 			if err != nil {
 				tx.Rollback()

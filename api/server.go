@@ -23,14 +23,11 @@ func New(addr string) (srv *Server, err error) {
 	}
 
 	ws := websocket.New(websocket.Config{
-		ReadBufferSize:  1024,
-		WriteBufferSize: 1024,
+		ReadBufferSize:  4096,
+		WriteBufferSize: 4096,
 	})
 
 	ws.OnConnection(handler.SendMessageHandler)
-	wsHandler := func(ctx iris.Context) {
-		ws.Handler()(ctx)
-	}
 
 	srv.app.Use(func(ctx iris.Context) {
 		fmt.Printf("%s %s \n", ctx.Method(), ctx.Request().URL.String())
@@ -51,6 +48,7 @@ func New(addr string) (srv *Server, err error) {
 	srv.app.OnErrorCode(iris.StatusNotFound, handler.ErrorNotFound)
 	srv.app.OnErrorCode(iris.StatusBadRequest, handler.ErrorBadRequest)
 	srv.app.OnErrorCode(iris.StatusInternalServerError, handler.ErrorInternal)
+	srv.app.OnErrorCode(iris.StatusServiceUnavailable, handler.ErrorServiceUnavailable)
 
 	// router
 	// user related
@@ -59,9 +57,10 @@ func New(addr string) (srv *Server, err error) {
 	srv.app.Post("/users/logout", handler.UserLogoutHandler)
 	srv.app.Get("/me", handler.UserInfoHandler)
 	srv.app.Post("/messages", handler.ReceiveMessageHandler)
-	srv.app.Get("/messages", wsHandler)
-	srv.app.Post("/devices/bind", handler.BindAuthTokenHandler)
+	srv.app.Get("/messages", ws.Handler())
 	srv.app.Get("/devices", handler.DeviceListHandler)
+	srv.app.Post("/devices/bind", handler.DeviceBindHandler)
+	srv.app.Post("/devices/unbind", handler.DeviceUnbindHandler)
 	srv.app.Get("/token", handler.DeviceBindTokenHandler)
 	srv.app.Get("/debug", handler.DebugHandler)
 

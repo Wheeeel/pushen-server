@@ -26,6 +26,18 @@ func ErrorInternal(ctx iris.Context) {
 	ctx.JSON(resp)
 }
 
+func ErrorServiceUnavailable(ctx iris.Context) {
+	var resp Response
+	resp.Code = iris.StatusServiceUnavailable
+
+	errMessage := ctx.Values().GetString("error")
+	if errMessage != "" {
+		resp.Msg = errMessage
+	}
+
+	ctx.JSON(resp)
+}
+
 func ErrorNotFound(ctx iris.Context) {
 	var resp Response
 	resp.Code = iris.StatusNotFound

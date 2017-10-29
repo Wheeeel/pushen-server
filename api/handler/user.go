@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/Wheeeel/pushen-server/api/request"
+	apiutil "github.com/Wheeeel/pushen-server/api/util"
 	"github.com/Wheeeel/pushen-server/model"
 	"github.com/Wheeeel/pushen-server/util"
 	"github.com/go-playground/validator"
@@ -25,47 +26,40 @@ var (
 )
 
 func UserLoginHandler(ctx iris.Context) {
-	sess := session.Start(ctx)
+	s := session.Start(ctx)
 
 	var ul request.UserLogin
 	err := ctx.ReadJSON(&ul)
 	if err != nil {
-		ctx.StatusCode(iris.StatusBadRequest)
-		ctx.Values().Set("error", err.Error())
+		apiutil.WriteErrorf(ctx, iris.StatusBadRequest, err.Error(), "user login error: %v", err.Error())
 		return
 	}
 
 	validate := validator.New()
 	err = validate.Struct(ul)
 	if err != nil {
-		ctx.StatusCode(iris.StatusBadRequest)
-		ctx.Values().Set("error", err.Error())
+		apiutil.WriteErrorf(ctx, iris.StatusBadRequest, err.Error(), "user login error: %v", err.Error())
 		return
 	}
 
 	ok, err := model.UserValidate(model.DefaultDB, ul.Email, ul.Password)
 	if err != nil {
-		ctx.StatusCode(iris.StatusBadRequest)
-		ctx.Values().Set("error", err.Error())
+		apiutil.WriteErrorf(ctx, iris.StatusBadRequest, err.Error(), "user login error: %v", err.Error())
 		return
 	}
 
 	if !ok {
-		ctx.StatusCode(iris.StatusForbidden)
-		ctx.Values().Set("error", "permission denied")
+		apiutil.WriteError(ctx, iris.StatusForbidden, "permission denied", "user login error")
 		return
 	}
 
 	// set cookie
-	sess.Set(authenticated, true)
-	sess.Set("email", ul.Email)
+	s.Set(authenticated, true)
+	s.Set("email", ul.Email)
 
 	var resp Response
 	resp.Code = iris.StatusOK
 	resp.Msg = "success"
-	resp.Data = map[string]interface{}{
-		"cookie": sess.ID(),
-	}
 	ctx.JSON(resp)
 }
 
@@ -83,24 +77,21 @@ func UserCreateHandler(ctx iris.Context) {
 	var uc request.UserCreate
 	err := ctx.ReadJSON(&uc)
 	if err != nil {
-		ctx.StatusCode(iris.StatusBadRequest)
-		ctx.Values().Set("error", err.Error())
+		apiutil.WriteErrorf(ctx, iris.StatusBadRequest, err.Error(), "user create error: %v", err.Error())
 		return
 	}
 
 	validate := validator.New()
 	err = validate.Struct(uc)
 	if err != nil {
-		ctx.StatusCode(iris.StatusBadRequest)
-		ctx.Values().Set("error", err.Error())
+		apiutil.WriteErrorf(ctx, iris.StatusBadRequest, err.Error(), "user create error: %v", err.Error())
 		return
 	}
 
 	var user model.User
 	err = util.CopyStruct(&user, uc)
 	if err != nil {
-		ctx.StatusCode(iris.StatusInternalServerError)
-		ctx.Values().Set("error", err.Error())
+		apiutil.WriteErrorf(ctx, iris.StatusInternalServerError, err.Error(), "user create error: %v", err.Error())
 		return
 	}
 
@@ -110,14 +101,12 @@ func UserCreateHandler(ctx iris.Context) {
 	err = model.UserCreate(tx, &user)
 	if err != nil {
 		tx.Rollback()
-		ctx.StatusCode(iris.StatusInternalServerError)
-		ctx.Values().Set("error", err.Error())
+		apiutil.WriteErrorf(ctx, iris.StatusInternalServerError, err.Error(), "user create error: %v", err.Error())
 		return
 	}
 	if err = tx.Commit().Error; err != nil {
 		tx.Rollback()
-		ctx.StatusCode(iris.StatusInternalServerError)
-		ctx.Values().Set("error", err.Error())
+		apiutil.WriteErrorf(ctx, iris.StatusInternalServerError, err.Error(), "user create error: %v", err.Error())
 		return
 	}
 
@@ -130,15 +119,13 @@ func UserCreateHandler(ctx iris.Context) {
 func UserInfoHandler(ctx iris.Context) {
 	email := ctx.Values().GetString("email")
 	if email == "" {
-		ctx.StatusCode(iris.StatusForbidden)
-		ctx.Values().Set("error", "auth error")
+		apiutil.WriteError(ctx, iris.StatusBadRequest, "auth error", "user info error")
 		return
 	}
 
 	user, err := model.UserByEmail(model.DefaultDB, email)
 	if err != nil {
-		ctx.StatusCode(iris.StatusInternalServerError)
-		ctx.Values().Set("error", err.Error())
+		apiutil.WriteErrorf(ctx, iris.StatusInternalServerError, err.Error(), "user info error: %v", err.Error())
 		return
 	}
 

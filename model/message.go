@@ -1,6 +1,9 @@
 package model
 
-import "github.com/pkg/errors"
+import (
+	"github.com/jinzhu/gorm"
+	"github.com/pkg/errors"
+)
 
 type MessageStatus uint8
 
@@ -21,8 +24,8 @@ type Message struct {
 	Timestamp
 }
 
-func MessageCreate(message *Message) (err error) {
-	err = DefaultDB.Create(message).Error
+func MessageCreate(db *gorm.DB, message *Message) (err error) {
+	err = db.Create(message).Error
 	if err != nil {
 		err = errors.Wrap(err, "message create error")
 		return
@@ -30,8 +33,8 @@ func MessageCreate(message *Message) (err error) {
 	return
 }
 
-func MessageByCreateTimestamp() (ms []Message, err error) {
-	err = DefaultDB.Where("status = ?", MessageStatusReceived).
+func MessageByCreateTimestamp(db *gorm.DB) (ms []Message, err error) {
+	err = db.Where("status = ?", MessageStatusReceived).
 		Order("create_timestamp desc").Offset(10).Find(&ms).Error
 	if err != nil {
 		err = errors.Wrap(err, "message by create timestamp error")
@@ -40,8 +43,8 @@ func MessageByCreateTimestamp() (ms []Message, err error) {
 	return
 }
 
-func MessageUpdateStatus(msg *Message) (err error) {
-	err = DefaultDB.Table("message").Where("id = ?", msg.ID).Update("status", msg.Status).Error
+func MessageUpdateStatus(db *gorm.DB, msg *Message) (err error) {
+	err = db.Table("message").Where("id = ?", msg.ID).Update("status", msg.Status).Error
 	if err != nil {
 		err = errors.Wrap(err, "message status update error")
 		return

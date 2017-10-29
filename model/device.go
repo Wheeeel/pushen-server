@@ -1,6 +1,9 @@
 package model
 
-import "github.com/pkg/errors"
+import (
+	"github.com/jinzhu/gorm"
+	"github.com/pkg/errors"
+)
 
 type Device struct {
 	ID     int64  `json:"id" gorm:"primary_key,AUTO_INCREMENT"`
@@ -12,8 +15,8 @@ type Device struct {
 	Timestamp
 }
 
-func DeviceCreate(deivce *Device) (err error) {
-	err = DefaultDB.Create(deivce).Error
+func DeviceCreate(db *gorm.DB, device *Device) (err error) {
+	err = db.Create(device).Error
 	if err != nil {
 		err = errors.Wrap(err, "device create error")
 		return
@@ -21,8 +24,8 @@ func DeviceCreate(deivce *Device) (err error) {
 	return
 }
 
-func DevicesByUserID(id int64) (devices []Device, err error) {
-	err = DefaultDB.Where("id = ?", id).Find(&devices).Error
+func DevicesByUserID(db *gorm.DB, id int64) (devices []Device, err error) {
+	err = db.Where("id = ?", id).Find(&devices).Error
 	if err != nil {
 		err = errors.Wrap(err, "device by user id error")
 		return

@@ -50,6 +50,7 @@ func New(addr string) (srv *Server, err error) {
 	srv.app.OnErrorCode(iris.StatusForbidden, handler.ErrorForbidden)
 	srv.app.OnErrorCode(iris.StatusNotFound, handler.ErrorNotFound)
 	srv.app.OnErrorCode(iris.StatusBadRequest, handler.ErrorBadRequest)
+	srv.app.OnErrorCode(iris.StatusInternalServerError, handler.ErrorInternal)
 
 	// router
 	// user related
@@ -60,6 +61,7 @@ func New(addr string) (srv *Server, err error) {
 	srv.app.Post("/messages", handler.ReceiveMessageHandler)
 	srv.app.Get("/messages", wsHandler)
 	srv.app.Post("/devices/bind", handler.BindAuthTokenHandler)
+	srv.app.Get("/devices", handler.DeviceListHandler)
 	srv.app.Get("/token", handler.DeviceBindTokenHandler)
 	srv.app.Get("/debug", handler.DebugHandler)
 

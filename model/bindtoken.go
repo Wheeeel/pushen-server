@@ -1,6 +1,9 @@
 package model
 
-import "github.com/pkg/errors"
+import (
+	"github.com/jinzhu/gorm"
+	"github.com/pkg/errors"
+)
 
 type BindStatus uint8
 
@@ -19,8 +22,8 @@ type BindToken struct {
 	Timestamp
 }
 
-func BindTokenByToken(token string) (ba BindToken, err error) {
-	err = DefaultDB.Where("token = ?", token).First(&ba).Error
+func BindTokenByToken(db *gorm.DB, token string) (ba BindToken, err error) {
+	err = db.Where("token = ?", token).First(&ba).Error
 	if err != nil {
 		err = errors.Wrap(err, "bind token by token error")
 		return
@@ -28,8 +31,8 @@ func BindTokenByToken(token string) (ba BindToken, err error) {
 	return
 }
 
-func BindTokenCreate(token *BindToken) (err error) {
-	err = DefaultDB.Create(token).Error
+func BindTokenCreate(db *gorm.DB, token *BindToken) (err error) {
+	err = db.Create(token).Error
 	if err != nil {
 		err = errors.Wrap(err, "bind token create error")
 		return
@@ -37,8 +40,8 @@ func BindTokenCreate(token *BindToken) (err error) {
 	return
 }
 
-func BindTokenUpdateStatus(token *BindToken) (err error) {
-	err = DefaultDB.Table("bind_token").Where("id = ?", token.ID).Update("status", token.Status).Error
+func BindTokenUpdateStatus(db *gorm.DB, token *BindToken) (err error) {
+	err = db.Table("bind_token").Where("id = ?", token.ID).Update("status", token.Status).Error
 	if err != nil {
 		err = errors.Wrap(err, "bind token status update error")
 		return

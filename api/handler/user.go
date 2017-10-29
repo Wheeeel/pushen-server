@@ -43,7 +43,7 @@ func UserLoginHandler(ctx iris.Context) {
 		return
 	}
 
-	ok, err := model.UserValidate(ul.Email, ul.Password)
+	ok, err := model.UserValidate(model.DefaultDB, ul.Email, ul.Password)
 	if err != nil {
 		ctx.StatusCode(iris.StatusBadRequest)
 		ctx.Values().Set("error", err.Error())
@@ -106,8 +106,16 @@ func UserCreateHandler(ctx iris.Context) {
 
 	rand.Seed(time.Now().Unix())
 	user.AvatarURL = avatar[rand.Intn(5)]
-	err = model.UserCreate(&user)
+	tx := model.DefaultDB.Begin()
+	err = model.UserCreate(tx, &user)
 	if err != nil {
+		tx.Rollback()
+		ctx.StatusCode(iris.StatusInternalServerError)
+		ctx.Values().Set("error", err.Error())
+		return
+	}
+	if err = tx.Commit().Error; err != nil {
+		tx.Rollback()
 		ctx.StatusCode(iris.StatusInternalServerError)
 		ctx.Values().Set("error", err.Error())
 		return
@@ -127,7 +135,7 @@ func UserInfoHandler(ctx iris.Context) {
 		return
 	}
 
-	user, err := model.UserByEmail(email)
+	user, err := model.UserByEmail(model.DefaultDB, email)
 	if err != nil {
 		ctx.StatusCode(iris.StatusInternalServerError)
 		ctx.Values().Set("error", err.Error())

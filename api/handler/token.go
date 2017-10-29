@@ -34,7 +34,7 @@ func BindAuthTokenHandler(ctx iris.Context) {
 		return
 	}
 
-	token, err := model.BindTokenByToken(bindToken.Token)
+	token, err := model.BindTokenByToken(model.DefaultDB, bindToken.Token)
 	if err != nil {
 		ctx.StatusCode(iris.StatusBadRequest)
 		ctx.Values().Set("error", err.Error())
@@ -47,9 +47,17 @@ func BindAuthTokenHandler(ctx iris.Context) {
 		return
 	}
 
+	tx := model.DefaultDB.Begin()
 	token.Status = model.BindStatusBinded
-	err = model.BindTokenUpdateStatus(&bindToken)
+	err = model.BindTokenUpdateStatus(tx, &bindToken)
 	if err != nil {
+		tx.Rollback()
+		ctx.StatusCode(iris.StatusInternalServerError)
+		ctx.Values().Set("error", err.Error())
+		return
+	}
+	if err = tx.Commit().Error; err != nil {
+		tx.Rollback()
 		ctx.StatusCode(iris.StatusInternalServerError)
 		ctx.Values().Set("error", err.Error())
 		return
@@ -59,14 +67,22 @@ func BindAuthTokenHandler(ctx iris.Context) {
 	var at model.AuthToken
 	at.Token = uuid.NewV4().String()
 	at.UserID = token.UserID
-	err = model.AuthTokenCreate(&at)
+	tx = model.DefaultDB.Begin()
+	err = model.AuthTokenCreate(tx, &at)
 	if err != nil {
+		tx.Rollback()
+		ctx.StatusCode(iris.StatusInternalServerError)
+		ctx.Values().Set("error", err.Error())
+		return
+	}
+	if err = tx.Commit().Error; err != nil {
+		tx.Rollback()
 		ctx.StatusCode(iris.StatusInternalServerError)
 		ctx.Values().Set("error", err.Error())
 		return
 	}
 
-	user, err := model.UserByID(token.UserID)
+	user, err := model.UserByID(model.DefaultDB, token.UserID)
 	if err != nil {
 		ctx.StatusCode(iris.StatusBadRequest)
 		ctx.Values().Set("error", err.Error())
@@ -79,8 +95,16 @@ func BindAuthTokenHandler(ctx iris.Context) {
 	device.UUID = uuid.NewV4().String()
 	device.UserID = user.ID
 	//device.Status = 1
-	err = model.DeviceCreate(&device)
+	tx = model.DefaultDB.Begin()
+	err = model.DeviceCreate(tx, &device)
 	if err != nil {
+		tx.Rollback()
+		ctx.StatusCode(iris.StatusInternalServerError)
+		ctx.Values().Set("error", err.Error())
+		return
+	}
+	if err = tx.Commit().Error; err != nil {
+		tx.Rollback()
 		ctx.StatusCode(iris.StatusInternalServerError)
 		ctx.Values().Set("error", err.Error())
 		return
@@ -121,7 +145,7 @@ func BindAuthTokenRenewHandler(ctx iris.Context) {
 		return
 	}
 
-	token, err := model.BindTokenByToken(bindToken.Token)
+	token, err := model.BindTokenByToken(model.DefaultDB, bindToken.Token)
 	if err != nil {
 		ctx.StatusCode(iris.StatusBadRequest)
 		ctx.Values().Set("error", err.Error())
@@ -143,7 +167,8 @@ func BindAuthTokenRenewHandler(ctx iris.Context) {
 }
 
 func DeviceBindTokenHandler(ctx iris.Context) {
-	user, err := model.UserByEmail(ctx.Values().GetString("email"))
+	email := ctx.Values().GetString("email")
+	user, err := model.UserByEmail(model.DefaultDB, email)
 	if err != nil {
 		ctx.StatusCode(iris.StatusBadRequest)
 		ctx.Values().Set("error", err.Error())
@@ -154,8 +179,16 @@ func DeviceBindTokenHandler(ctx iris.Context) {
 	bindToken.Status = model.BindStatusNotBinded
 	bindToken.Token = uuid.NewV4().String()
 	bindToken.UserID = user.ID
-	err = model.BindTokenCreate(&bindToken)
+	tx := model.DefaultDB.Begin()
+	err = model.BindTokenCreate(tx, &bindToken)
 	if err != nil {
+		tx.Rollback()
+		ctx.StatusCode(iris.StatusInternalServerError)
+		ctx.Values().Set("error", err.Error())
+		return
+	}
+	if err = tx.Commit().Error; err != nil {
+		tx.Rollback()
 		ctx.StatusCode(iris.StatusInternalServerError)
 		ctx.Values().Set("error", err.Error())
 		return

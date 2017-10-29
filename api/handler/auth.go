@@ -3,7 +3,6 @@ package handler
 import (
 	"github.com/Wheeeel/pushen-server/model"
 	"github.com/kataras/iris"
-	"github.com/pkg/errors"
 )
 
 func AuthHandler(ctx iris.Context) {
@@ -29,14 +28,14 @@ func AuthHandler(ctx iris.Context) {
 		}
 
 		// use token
-		token, err := model.AuthTokenByToken(tokenStr)
+		token, err := model.AuthTokenByToken(model.DefaultDB, tokenStr)
 		if err != nil {
 			ctx.StatusCode(iris.StatusForbidden)
 			ctx.Values().Set("error", "auth error")
 			return
 		}
 
-		user, err := model.UserByID(token.UserID)
+		user, err := model.UserByID(model.DefaultDB, token.UserID)
 		if err != nil {
 			ctx.StatusCode(iris.StatusForbidden)
 			ctx.Values().Set("error", "auth error")
@@ -74,13 +73,4 @@ func AuthHandler(ctx iris.Context) {
 
 	//session.ShiftExpiration(ctx)
 	ctx.Next()
-}
-
-func deviceAuth(tokenStr string) (token model.AuthToken, err error) {
-	token, err = model.AuthTokenByToken(tokenStr)
-	if err != nil {
-		err = errors.Wrap(err, "device auth error")
-		return
-	}
-	return
 }

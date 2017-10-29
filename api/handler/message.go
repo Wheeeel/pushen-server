@@ -38,8 +38,16 @@ func ReceiveMessageHandler(ctx iris.Context) {
 		return
 	}
 
-	err = model.MessageCreate(&msg)
+	tx := model.DefaultDB.Begin()
+	err = model.MessageCreate(tx, &msg)
 	if err != nil {
+		tx.Rollback()
+		ctx.StatusCode(iris.StatusInternalServerError)
+		ctx.Values().Set("error", err.Error())
+		return
+	}
+	if err = tx.Commit().Error; err != nil {
+		tx.Rollback()
 		ctx.StatusCode(iris.StatusInternalServerError)
 		ctx.Values().Set("error", err.Error())
 		return
@@ -56,7 +64,7 @@ func SendMessageHandler(c websocket.Connection) {
 	defer ticker.Stop()
 
 	for range ticker.C {
-		ms, err := model.MessageByCreateTimestamp()
+		ms, err := model.MessageByCreateTimestamp(model.DefaultDB)
 		if err != nil {
 			log.Println(err)
 			continue
@@ -73,9 +81,16 @@ func SendMessageHandler(c websocket.Connection) {
 			}
 			c.EmitMessage(b)
 
+			tx := model.DefaultDB.Begin()
 			m.Status = model.MessageStatusSendt
-			err = model.MessageUpdateStatus(&m)
+			err = model.MessageUpdateStatus(tx, &m)
 			if err != nil {
+				tx.Rollback()
+				log.Println(err)
+				continue
+			}
+			if err = tx.Commit().Error; err != nil {
+				tx.Rollback()
 				log.Println(err)
 				continue
 			}

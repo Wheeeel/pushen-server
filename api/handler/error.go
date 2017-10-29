@@ -14,6 +14,18 @@ func ErrorForbidden(ctx iris.Context) {
 	ctx.JSON(resp)
 }
 
+func ErrorInternal(ctx iris.Context) {
+	var resp Response
+	resp.Code = iris.StatusInternalServerError
+
+	errMessage := ctx.Values().GetString("error")
+	if errMessage != "" {
+		resp.Msg = errMessage
+	}
+
+	ctx.JSON(resp)
+}
+
 func ErrorNotFound(ctx iris.Context) {
 	var resp Response
 	resp.Code = iris.StatusNotFound

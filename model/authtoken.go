@@ -1,18 +1,21 @@
 package model
 
-import "github.com/pkg/errors"
+import (
+	"github.com/jinzhu/gorm"
+	"github.com/pkg/errors"
+)
 
 type AuthToken struct {
-	ID       int64      `json:"id" gorm:"primary_key,AUTO_INCREMENT"`
-	UserID   int64      `json:"userId"`
-	DeviceID int64      `json:"deviceId"`
-	Token    string     `json:"token"`
+	ID       int64  `json:"id" gorm:"primary_key,AUTO_INCREMENT"`
+	UserID   int64  `json:"userId"`
+	DeviceID int64  `json:"deviceId"`
+	Token    string `json:"token"`
 
 	Timestamp
 }
 
-func AuthTokenByToken(token string) (at AuthToken, err error) {
-	err = DefaultDB.Where("token = ?", token).First(&at).Error
+func AuthTokenByToken(db *gorm.DB, token string) (at AuthToken, err error) {
+	err = db.Where("token = ?", token).First(&at).Error
 	if err != nil {
 		err = errors.Wrap(err, "auth token by token error")
 		return
@@ -20,8 +23,8 @@ func AuthTokenByToken(token string) (at AuthToken, err error) {
 	return
 }
 
-func AuthTokenCreate(token *AuthToken) (err error) {
-	err = DefaultDB.Create(token).Error
+func AuthTokenCreate(db *gorm.DB, token *AuthToken) (err error) {
+	err = db.Create(token).Error
 	if err != nil {
 		err = errors.Wrap(err, "auth token create error")
 		return

@@ -9,8 +9,8 @@ type MessageStatus uint8
 
 const (
 	MessageStatusReceived   MessageStatus = 0
-	MessageStatusSendt      MessageStatus = 1
-	MessageStatusSendFailed MessageStatus = 2
+	MessageStatusSent      MessageStatus = 1
+	MessageStatusSentFailed MessageStatus = 2
 )
 
 type Message struct {
@@ -33,8 +33,18 @@ func MessageCreate(db *gorm.DB, message *Message) (err error) {
 	return
 }
 
-func MessageByCreateTimestamp(db *gorm.DB) (ms []Message, err error) {
+func MessageOrderByCreateTimestamp(db *gorm.DB) (ms []Message, err error) {
 	err = db.Where("status = ?", MessageStatusReceived).
+		Order("create_timestamp desc").Offset(10).Find(&ms).Error
+	if err != nil {
+		err = errors.Wrap(err, "message by create timestamp error")
+		return
+	}
+	return
+}
+
+func MessageByDeviceIDOrderByCreateTimestamp(db *gorm.DB, deviceID int64) (ms []Message, err error) {
+	err = db.Where("status = ? AND device_id = ?", MessageStatusReceived, deviceID).
 		Order("create_timestamp desc").Offset(10).Find(&ms).Error
 	if err != nil {
 		err = errors.Wrap(err, "message by create timestamp error")

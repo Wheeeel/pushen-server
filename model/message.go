@@ -9,7 +9,7 @@ type MessageStatus uint8
 
 const (
 	MessageStatusReceived   MessageStatus = 0
-	MessageStatusSent      MessageStatus = 1
+	MessageStatusSent       MessageStatus = 1
 	MessageStatusSentFailed MessageStatus = 2
 )
 

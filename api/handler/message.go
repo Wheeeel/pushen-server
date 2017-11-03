@@ -63,45 +63,56 @@ func ReceiveMessageHandler(ctx iris.Context) {
 }
 
 func SendMessageHandler(c websocket.Connection) {
-	ticker := time.NewTicker(time.Second * 1)
-	defer ticker.Stop()
+	c.OnMessage(func(data []byte) {
+		ticker := time.NewTicker(time.Second * 1)
+		defer ticker.Stop()
 
-	for range ticker.C {
-		ms, err := model.MessageOrderByCreateTimestamp(model.DefaultDB)
+		for range ticker.C {
+			log.Printf("Connection with ID: %s send message", c.ID())
+			messageSend(c)
+		}
+
+	})
+
+	c.OnDisconnect(func() {
+		log.Printf("Connection with ID: %s has been disconnected!", c.ID())
+	})
+}
+
+func messageSend(c websocket.Connection) {
+	ms, err := model.MessageOrderByCreateTimestamp(model.DefaultDB)
+	if err != nil {
+		log.Println(err)
+		return
+	}
+	if len(ms) == 0 {
+		return
+	}
+
+	for _, m := range ms {
+		b, err := json.Marshal(m)
 		if err != nil {
-			//c.Context()..Application().Logger().Infof("receive message error: %v", err)
 			log.Println(err)
 			continue
 		}
-		if len(ms) == 0 {
+		err = c.EmitMessage(b)
+		if err != nil {
+			log.Println(err)
 			continue
 		}
 
-		for _, m := range ms {
-			b, err := json.Marshal(m)
-			if err != nil {
-				log.Println(err)
-				continue
-			}
-			err = c.EmitMessage(b)
-			if err != nil {
-				log.Println(err)
-				continue
-			}
-
-			tx := model.DefaultDB.Begin()
-			m.Status = model.MessageStatusSent
-			err = model.MessageUpdateStatus(tx, &m)
-			if err != nil {
-				tx.Rollback()
-				log.Println(err)
-				continue
-			}
-			if err = tx.Commit().Error; err != nil {
-				tx.Rollback()
-				log.Println(err)
-				continue
-			}
+		tx := model.DefaultDB.Begin()
+		m.Status = model.MessageStatusSent
+		err = model.MessageUpdateStatus(tx, &m)
+		if err != nil {
+			tx.Rollback()
+			log.Println(err)
+			continue
+		}
+		if err = tx.Commit().Error; err != nil {
+			tx.Rollback()
+			log.Println(err)
+			continue
 		}
 	}
 }

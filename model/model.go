@@ -27,6 +27,15 @@ func New(dsn string) (db *gorm.DB, err error) {
 		err = errors.Wrap(err, "new db error")
 		return
 	}
+	db.DB().SetMaxIdleConns(1024)
+	db.DB().SetMaxOpenConns(1024)
+
+	err = db.DB().Ping()
+	if err != nil {
+		err = errors.Wrap(err, "new db error")
+		return
+	}
+
 	db.SingularTable(true)
 	return
 }

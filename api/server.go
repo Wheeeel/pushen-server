@@ -23,8 +23,8 @@ func New(addr string) (srv *Server, err error) {
 	}
 
 	ws := websocket.New(websocket.Config{
-		ReadBufferSize:  4096,
-		WriteBufferSize: 4096,
+		ReadBufferSize:  1024,
+		WriteBufferSize: 1024,
 	})
 
 	ws.OnConnection(handler.SendMessageHandler)

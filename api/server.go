@@ -7,7 +7,6 @@ import (
 	"github.com/Wheeeel/pushen-server/config"
 	"github.com/kataras/iris"
 	"github.com/kataras/iris/core/handlerconv"
-	"github.com/kataras/iris/websocket"
 	corscore "github.com/rs/cors"
 )
 
@@ -21,13 +20,6 @@ func New(addr string) (srv *Server, err error) {
 		app:  iris.New(),
 		Addr: addr,
 	}
-
-	ws := websocket.New(websocket.Config{
-		ReadBufferSize:  1024,
-		WriteBufferSize: 1024,
-	})
-
-	ws.OnConnection(handler.SendMessageHandler)
 
 	srv.app.Use(func(ctx iris.Context) {
 		fmt.Printf("%s %s \n", ctx.Method(), ctx.Request().URL.String())
@@ -57,7 +49,7 @@ func New(addr string) (srv *Server, err error) {
 	srv.app.Post("/users/logout", handler.UserLogoutHandler)
 	srv.app.Get("/me", handler.UserInfoHandler)
 	srv.app.Post("/messages", handler.ReceiveMessageHandler)
-	srv.app.Get("/messages", ws.Handler())
+	srv.app.Get("/messages", handler.SendMessageHandler)
 	srv.app.Get("/devices", handler.DeviceListHandler)
 	srv.app.Post("/devices/bind", handler.DeviceBindHandler)
 	srv.app.Post("/devices/unbind", handler.DeviceUnbindHandler)

@@ -34,8 +34,7 @@ func MessageCreate(db *gorm.DB, message *Message) (err error) {
 }
 
 func MessageOrderByCreateTimestamp(db *gorm.DB) (ms []Message, err error) {
-	err = db.Where("status = ?", MessageStatusReceived).
-		Order("create_timestamp desc").Offset(10).Find(&ms).Error
+	err = db.Where("status = ?", MessageStatusReceived).Order("create_timestamp asc").Offset(10).Find(&ms).Error
 	if err != nil {
 		err = errors.Wrap(err, "message by create timestamp error")
 		return

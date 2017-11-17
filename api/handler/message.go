@@ -1,8 +1,8 @@
 package handler
 
 import (
-	"encoding/json"
 	"log"
+	"net/http"
 	"time"
 
 	"github.com/Wheeeel/pushen-server/api/request"
@@ -10,9 +10,20 @@ import (
 	"github.com/Wheeeel/pushen-server/model"
 	"github.com/Wheeeel/pushen-server/util"
 	"github.com/go-playground/validator"
+	"github.com/gorilla/websocket"
 	"github.com/kataras/iris"
-	"github.com/kataras/iris/websocket"
+	"github.com/pkg/errors"
 )
+
+var upgrader websocket.Upgrader
+
+func init() {
+	upgrader = websocket.Upgrader{
+		ReadBufferSize:  1024,
+		WriteBufferSize: 1024,
+		CheckOrigin:     func(r *http.Request) bool { return true },
+	}
+}
 
 func ReceiveMessageHandler(ctx iris.Context) {
 	var mc request.MessageCreate
@@ -62,27 +73,30 @@ func ReceiveMessageHandler(ctx iris.Context) {
 	ctx.JSON(resp)
 }
 
-func SendMessageHandler(c websocket.Connection) {
-	c.OnMessage(func(data []byte) {
-		ticker := time.NewTicker(time.Second * 1)
-		defer ticker.Stop()
+func SendMessageHandler(ctx iris.Context) {
+	conn, err := upgrader.Upgrade(ctx.ResponseWriter(), ctx.Request(), nil)
+	if err != nil {
+		log.Printf("send message handler upgrade error: %v", err)
+		return
+	}
+	defer conn.Close()
 
-		for range ticker.C {
-			log.Printf("Connection with ID: %s send message", c.ID())
-			messageSend(c)
+	ticker := time.NewTicker(time.Second * 1)
+	defer ticker.Stop()
+
+	for range ticker.C {
+		err := sendMessage(conn)
+		if err != nil {
+			log.Printf("write message error: %v", err)
+			break
 		}
-
-	})
-
-	c.OnDisconnect(func() {
-		log.Printf("Connection with ID: %s has been disconnected!", c.ID())
-	})
+	}
 }
 
-func messageSend(c websocket.Connection) {
+func sendMessage(c *websocket.Conn) (err error) {
 	ms, err := model.MessageOrderByCreateTimestamp(model.DefaultDB)
 	if err != nil {
-		log.Println(err)
+		err = errors.Wrap(err, "send message error")
 		return
 	}
 	if len(ms) == 0 {
@@ -90,15 +104,10 @@ func messageSend(c websocket.Connection) {
 	}
 
 	for _, m := range ms {
-		b, err := json.Marshal(m)
+		err = c.WriteJSON(m)
 		if err != nil {
 			log.Println(err)
-			continue
-		}
-		err = c.EmitMessage(b)
-		if err != nil {
-			log.Println(err)
-			continue
+			break
 		}
 
 		tx := model.DefaultDB.Begin()
@@ -115,4 +124,5 @@ func messageSend(c websocket.Connection) {
 			continue
 		}
 	}
+	return
 }
